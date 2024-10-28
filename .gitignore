@@ -1,0 +1,67 @@
+*.dll
+sfml-*.dll
+ChessAI/sfml-*.dll
+.vs/
+ChessAI/x64/
+*.tlog
+*.pdb
+*.ilk
+*.log
+*.obj
+*.exe
+ChessAI/x64/Debug/ChessAI.exe.recipe
+ChessAI/x64/Debug/ChessAI.ilk
+ChessAI/x64/Debug/ChessAI.log
+ChessAI/x64/Debug/ChessAI.tlog/*.tlog
+ChessAI/x64/Debug/ChessAI.tlog/*.lastbuildstate
+ChessAI/x64/Debug/ChessAI.tlog/*.items.tlog
+
+# Игнорировать временные и отладочные файлы
+ChessAI/.vs/
+*.dll
+sfml-*.dll
+ChessAI/sfml-*.dll
+.vs/
+ChessAI/x64/
+*.tlog
+*.pdb
+*.ilk
+*.log
+*.obj
+*.exe
+ChessAI/x64/Debug/ChessAI.exe.recipe
+ChessAI/x64/Debug/ChessAI.ilk
+ChessAI/x64/Debug/ChessAI.log
+ChessAI/x64/Debug/ChessAI.tlog/*.tlog
+ChessAI/x64/Debug/ChessAI.tlog/*.lastbuildstate
+ChessAI/x64/Debug/ChessAI.tlog/*.items.tlog
+
+# Игнорировать временные и отладочные файлы
+ChessAI/.vs/
+ChessAI/x64/Debug/
+ChessAI/x64/Release/
+ChessAI/*.obj
+ChessAI/*.pdb
+ChessAI/*.idb
+ChessAI/*.exe
+ChessAI/*.dll
+
+# Игнорировать пользовательские настройки и метафайлы
+*.user
+*.suo
+*.VC.db
+
+# Исключить кэш и временные файлы IDE
+.idea/
+.vscode/
+
+# Исключить временные и системные файлы
+*.tmp
+*.log
+*.bak
+*.swp
+
+# Оставить только файлы исходного кода и ресурсов
+!ChessAI/*.cpp
+!ChessAI/*.h
+!ChessAI/PiecesImgs/*.png
