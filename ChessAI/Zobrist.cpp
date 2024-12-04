@@ -1,48 +1,39 @@
 #include "Zobrist.h"
+
 #include <random>
 
-void Zobrist::Setup() noexcept
+void ZOBRIST::init() noexcept
 {
 	std::mt19937_64 gen(std::random_device{}());
 	std::uniform_int_distribution<unsigned long long> dist(0, ULLONG_MAX);
 
-	for (int i = 0; i < 64; i++)
-	{
-		for (int j = 0; j < 2; j++)
-		{
-			for (int k = 0; k < 6; k++)
-				RandomValues[i][j][k] = dist(gen);
-		}
-	}
-}
-U64 Zobrist::getHash(U64 pieces[2][6], U64 position) noexcept
-{
-	U64 hash = 0;
-	while (position)
-	{
-		UL index = BSF64(position);
-		U64 piece = 1ULL << index;
+	for (PlayerType player = WHITE; player <= BLACK; ++player)
+		for (PieceType piece = KING; piece <= ROOK; ++piece)
+			for (size_t sqr = 0; sqr < 64; ++sqr)
+				RandomValues[player][piece][sqr] = dist(gen);
 
-		for (int i = 0; i < 2; i++)
-		{
-			bool stop = false;
-			for (int j = 0; j < 6; j++)
-			{
-				if (piece & pieces[i][j])
-				{
-					hash ^= RandomValues[index][i][j];
-					stop = true;
-					break;
-				}
-			}
-			if (stop)
-				break;
-		}
-	}
+}
 
-	return hash;
-}
-U64 Zobrist::getSqrHash(UL index, int player, int piece) noexcept
+void Zobrist::setKey(const Bitboard& position) noexcept
 {
-	return RandomValues[index][player][piece];
+	auto gen_hash_help = [this](U64 pos, PieceType pieceT, PlayerType playerT)
+	{
+		while(pos)
+		{
+			UL index = BSF64(pos);
+			key ^= ZOBRIST::RandomValues[playerT][pieceT][index];
+		}
+	};
+
+	for (PlayerType player = WHITE; player <= BLACK; ++player)
+		for (PieceType piece = KING; piece <= ROOK; ++piece)
+			gen_hash_help(position(player, piece), piece, player);
 }
+
+void Zobrist::KeyUpdate(UL sqr, PlayerType player, PieceType piece) noexcept
+{
+	key ^= ZOBRIST::RandomValues[player][piece][sqr];
+}
+
+
+

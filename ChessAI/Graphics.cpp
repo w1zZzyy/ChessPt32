@@ -3,10 +3,9 @@
 
 extern std::mutex updateMTX;
 
-Graphics::Graphics(Position& board, PlayerType player, int winX, int winY) : player(player)
+Graphics::Graphics(Position& board, PlayerType player, int winX, int winY) : player(player), position(&board)
 {
 	window.create(sf::VideoMode(winX, winY), "ChessAI");
-	position = &board;
 
 
 	for (int i = 0; i < 2; i++)

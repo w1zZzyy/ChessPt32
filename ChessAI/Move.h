@@ -1,15 +1,16 @@
 #pragma once
 
 #include <memory>
-#include <iostream>
 #include "Bitboard.h"
+
+constexpr int MOVES_CAPACITY = 218;
 
 class Move
 {
 private:
 
-	short move_value; // 6 - from 6 - to 4 - type
-	short pieces; // 4 - castle 3 - prom 3 - pm 3 - pc
+	short move_value=0; // 4 - type 6 - to 6 - from
+	short pieces=0; // 4 - castle 3 - prom 3 - pm 3 - pc
 
 
 public:
@@ -26,8 +27,8 @@ public:
 	void setCastle(int castle) noexcept;
 
 	MOVE_TYPE getType() const noexcept;
-	PieceType getFrom() const noexcept;
-	PieceType getTo() const noexcept;
+	short getFrom() const noexcept;
+	short getTo() const noexcept;
 	PieceType getPieceMoved() const noexcept;
 	PieceType getPieceCaptured() const noexcept;
 	PieceType getPiecePromotion() const noexcept;

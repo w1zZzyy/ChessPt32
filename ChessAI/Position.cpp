@@ -1,11 +1,9 @@
 #include "Position.h"
 #include "Zobrist.h"
 #include "ThreadPool.h"
+
 #include <iostream>
 #include <vector>
-
-
-
 
 
 Position::Position(const std::string& FEN)
@@ -43,6 +41,7 @@ Position::Position(const std::string& FEN)
 	player = (FEN[index] == 'w') ? WHITE : BLACK;
 	index += 2;
 
+	castles = 0;
 	while (index < FEN.size() && FEN[index] != ' ')
 	{
 		switch (FEN[index])
@@ -57,21 +56,25 @@ Position::Position(const std::string& FEN)
 		index++;
 	}
 
-	//zobrist = Zobrist::getHash(pieces, position[0] | position[1]);
+	en_passant = -1;
+
+	zobrist.setKey(pieces);
 }
 Position::Position(const Position& pos)
 {
-	pieces = pos.pieces;
-	player = pos.player;
-	castles = pos.castles;
-	en_passant = pos.en_passant;
+	pieces		=	 pos.pieces;
+	player		=	 pos.player;
+	castles		=	 pos.castles;
+	en_passant	=	 pos.en_passant;
+	zobrist		=	 pos.zobrist;
 }
 Position& Position::operator=(const Position& pos) noexcept
 {
-	pieces = pos.pieces;
-	player = pos.player;
-	castles = pos.castles;
-	en_passant = pos.en_passant;
+	pieces		=	 pos.pieces;
+	player		=	 pos.player;
+	castles		=	 pos.castles;
+	en_passant	=	 pos.en_passant;
+	zobrist		=	 pos.zobrist;
 	return *this;
 }
 
@@ -226,6 +229,8 @@ void Position::GenerateKingMoves(U64 piece, MoveList* Moves) const noexcept
 
 Position& Position::make_move(const Move& move) noexcept
 {
+	PlayerType player2 = static_cast<PlayerType>(player ^ 1);
+
 	short index_from = move.getFrom(), index_to = move.getTo();
 	U64 from = 1ULL << index_from, to = 1ULL << index_to;
 	U64 combined = from | to;
@@ -234,159 +239,7 @@ Position& Position::make_move(const Move& move) noexcept
 
 	pieces(player) ^= combined;
 
-
-	//zobrist ^= Zobrist::getSqrHash(index_from, player, piece_moved);
-	MOVE_TYPE move_type = move.getType();
-
-	switch (move_type)
-	{
-	case MOVE_TYPE::null:
-	{
-		NULLS++;
-		pieces(player, piece_moved) ^= combined;
-		//zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-
-		break;
-	}
-
-	case MOVE_TYPE::CAPTURE:
-	{
-		CAPTURES++;
-
-		PlayerType player2 = static_cast<PlayerType>(player ^ 1);
-		PieceType piece_captured = move.getPieceCaptured();
-
-		pieces(player, piece_moved) ^= combined;
-		pieces(player2, piece_captured) ^= to;
-		pieces(player2) ^= to;
-
-		/*zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-		zobrist ^= Zobrist::getSqrHash(index_to, player2, piece_captured);*/
-
-		if (piece_captured == ROOK)
-		{
-			if (player == BLACK)
-			{
-				if (Edges::H1 & to)
-					castles &= CASTLE::KING_DISABLE;
-				else if (Edges::A1 & to)
-					castles &= CASTLE::QUEEN_DISABLE;
-			}
-			else
-			{
-				if (Edges::H8 & to)
-					castles &= CASTLE::king_DISABLE;
-				else if (Edges::A8 & to)
-					castles &= CASTLE::queen_DISABLE;
-			}
-		}
-
-		break;
-	}
-
-	case MOVE_TYPE::DOUBLE_PUSH:
-	{
-		NULLS++;
-
-		pieces(player, piece_moved) ^= combined;
-		//zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-
-		en_passant = (player == WHITE) ? index_to - 8 : index_to + 8;
-		player = static_cast<PlayerType>(player ^ 1);
-		pieces(BOTH) = pieces(WHITE) | pieces(BLACK);
-
-		return *this;
-	}
-
-	case MOVE_TYPE::EN_PASSANT:
-	{
-		CAPTURES++;
-		PASSANTS++;
-
-		PlayerType player2 = static_cast<PlayerType>(player ^ 1);
-		/*zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-		zobrist ^= (player2 == 0) ? Zobrist::getSqrHash(index_to + 8, player2, 1) : Zobrist::getSqrHash(index_to - 8, player2, 1);*/
-
-		U64 kill = (player == WHITE) ? 1ULL << (en_passant - 8) : 1ULL << (en_passant + 8);
-
-		pieces(player, piece_moved) ^= combined;
-		pieces(player2, PAWN) ^= kill;
-		pieces(player2) ^= kill;
-
-		break;
-	}
-
-	case MOVE_TYPE::PROMOTION:
-	{
-		PROMOTIONS++;
-
-		PieceType piece_promoted = move.getPiecePromotion(), piece_captured = move.getPieceCaptured();
-
-		pieces(player, piece_moved) ^= from;
-		pieces(player, piece_promoted) |= to;
-
-		//zobrist ^= Zobrist::getSqrHash(index_to, player, piece_promoted);
-
-		if (piece_captured)
-		{
-			CAPTURES++;
-
-			PlayerType player2 = static_cast<PlayerType>(player ^ 1);
-			pieces(player2, piece_captured) ^= to;
-			pieces(player2) ^= to;
-			//zobrist ^= Zobrist::getSqrHash(index_to, player2, piece_captured);
-		}
-
-		break;
-	}
-
-	case MOVE_TYPE::CASTLE_KING:
-	{
-		CASTLES++;
-
-		U64 rcomb = combined >> 1;
-
-		pieces(player, KING) ^= combined;
-		pieces(player, ROOK) ^= rcomb;
-		pieces(player) ^= rcomb;
-
-		/*zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-		zobrist ^= Zobrist::getSqrHash(index_to + 1, player, 5);
-		zobrist ^= Zobrist::getSqrHash(index_to - 1, player, 5);*/
-
-		castles &= (player == WHITE)
-			? CASTLE::KING_DISABLE & CASTLE::QUEEN_DISABLE
-			: CASTLE::king_DISABLE & CASTLE::queen_DISABLE;
-
-		break;
-	}
-
-	case MOVE_TYPE::CASTLE_QUEEN:
-	{
-		CASTLES++;
-
-		U64 rcomb = (from << 1) | (to << 2);
-
-		pieces(player, KING) ^= combined;
-		pieces(player, ROOK) ^= rcomb;
-		pieces(player) ^= rcomb;
-
-		/*zobrist ^= Zobrist::getSqrHash(index_to, player, piece_moved);
-		zobrist ^= Zobrist::getSqrHash(index_to + 2, player, 5);
-		zobrist ^= Zobrist::getSqrHash(index_to - 1, player, 5);*/
-
-		castles &= (player == WHITE)
-			? CASTLE::KING_DISABLE & CASTLE::QUEEN_DISABLE
-			: CASTLE::king_DISABLE & CASTLE::queen_DISABLE;
-
-		break;
-	}
-
-	default:
-		break;
-	}
-
-	if(move_type == null || move_type == CAPTURE)
+	auto castle_check = [&piece_moved, &from, this]() 
 	{
 		if (piece_moved == KING)
 		{
@@ -411,15 +264,155 @@ Position& Position::make_move(const Move& move) noexcept
 					castles &= CASTLE::queen_DISABLE;
 			}
 		}
+	};
+	auto castle_rook_check = [&to, this](int piece_captured) 
+	{
+		if (piece_captured == ROOK)
+		{
+			if (player == BLACK)
+			{
+				if (Edges::H1 & to)
+					castles &= CASTLE::KING_DISABLE;
+				else if (Edges::A1 & to)
+					castles &= CASTLE::QUEEN_DISABLE;
+			}
+			else
+			{
+				if (Edges::H8 & to)
+					castles &= CASTLE::king_DISABLE;
+				else if (Edges::A8 & to)
+					castles &= CASTLE::queen_DISABLE;
+			}
+		}
+	};
+
+	zobrist.KeyUpdate(index_from, player, piece_moved);
+	MOVE_TYPE move_type = move.getType();
+
+	switch (move_type)
+	{
+	case MOVE_TYPE::null:
+	{
+		pieces(player, piece_moved) ^= combined;
+		zobrist.KeyUpdate(index_to, player, piece_moved);
+		castle_check();
+
+		break;
 	}
 
-	en_passant = 64;
-	player = static_cast<PlayerType>(player ^ 1);
-	pieces(BOTH) = pieces(WHITE) | pieces(BLACK);
+	case MOVE_TYPE::CAPTURE:
+	{
+		PieceType piece_captured = move.getPieceCaptured();
 
+		pieces(player, piece_moved) ^= combined;
+		pieces(player2, piece_captured) ^= to;
+		pieces(player2) ^= to;
+
+		zobrist.KeyUpdate(index_to, player, piece_moved);
+		zobrist.KeyUpdate(index_to, player2, piece_captured);
+
+		castle_rook_check(piece_captured);
+		castle_check();
+
+		break;
+	}
+
+	case MOVE_TYPE::DOUBLE_PUSH:
+	{
+		pieces(player, piece_moved) ^= combined;
+		zobrist.KeyUpdate(index_to, player, piece_moved);
+
+		en_passant = (player == WHITE) ? index_to - 8 : index_to + 8;
+		player = player2;
+		pieces(BOTH) = pieces(WHITE) | pieces(BLACK);
+
+		return *this;
+	}
+
+	case MOVE_TYPE::EN_PASSANT:
+	{
+		short kill_index = (player == WHITE) ? (en_passant - 8) : (en_passant + 8);
+		U64 kill = 1ULL << kill_index;
+
+		zobrist.KeyUpdate(index_to, player, piece_moved);	
+		zobrist.KeyUpdate(kill_index, player2, PAWN);
+
+		pieces(player, piece_moved) ^= combined;
+		pieces(player2, PAWN) ^= kill;
+		pieces(player2) ^= kill;
+
+		break;
+	}
+
+	case MOVE_TYPE::PROMOTION:
+	{
+		PieceType piece_promoted = move.getPiecePromotion(), piece_captured = move.getPieceCaptured();
+
+		pieces(player, piece_moved) ^= from;
+		pieces(player, piece_promoted) |= to;
+
+		zobrist.KeyUpdate(index_to, player, piece_promoted);
+
+		if (piece_captured)
+		{
+			castle_rook_check(piece_captured);
+			pieces(player2, piece_captured) ^= to;
+			pieces(player2) ^= to;
+			zobrist.KeyUpdate(index_to, player2, piece_captured);
+		}
+
+		break;
+	}
+
+	case MOVE_TYPE::CASTLE_KING:
+	{
+		U64 rcomb = combined >> 1;
+
+		pieces(player, KING) ^= combined;
+		pieces(player, ROOK) ^= rcomb;
+		pieces(player) ^= rcomb;
+
+		zobrist.KeyUpdate(index_to, player, piece_moved);
+		zobrist.KeyUpdate(index_to + 1, player, ROOK);
+		zobrist.KeyUpdate(index_to - 1, player, ROOK);
+
+		castles &= (player == WHITE)
+			? CASTLE::KING_DISABLE & CASTLE::QUEEN_DISABLE
+			: CASTLE::king_DISABLE & CASTLE::queen_DISABLE;
+
+		break;
+	}
+
+	case MOVE_TYPE::CASTLE_QUEEN:
+	{
+		U64 rcomb = (from << 1) | (to << 2);
+
+		pieces(player, KING) ^= combined;
+		pieces(player, ROOK) ^= rcomb;
+		pieces(player) ^= rcomb;
+
+		zobrist.KeyUpdate(index_to, player, piece_moved);
+		zobrist.KeyUpdate(index_to + 2, player, ROOK);
+		zobrist.KeyUpdate(index_to - 1, player, ROOK);
+
+		castles &= (player == WHITE)
+			? CASTLE::KING_DISABLE & CASTLE::QUEEN_DISABLE
+			: CASTLE::king_DISABLE & CASTLE::queen_DISABLE;
+
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	en_passant = -1;
+	player = player2;
+	pieces(BOTH) = pieces(WHITE) | pieces(BLACK);
 
 	return *this;
 }
+
 
 
 int Position::CountPoses(int depth) const noexcept
@@ -441,6 +434,7 @@ int Position::CountPoses(int depth) const noexcept
 	
 	return counter;
 }
+
 char Position::getPieceFEN(UL index) const noexcept
 {
 	U64 piece = 1ULL << index;

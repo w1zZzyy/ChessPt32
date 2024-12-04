@@ -10,6 +10,8 @@ enum PlayerType
 	BLACK = 1,
 	BOTH = 2
 };
+PlayerType& operator++ (PlayerType& player) noexcept;
+
 
 enum PieceType
 {
@@ -22,6 +24,8 @@ enum PieceType
 	NONE = 0b110,
 	ALL = 0b111
 };
+PieceType& operator++ (PieceType& piece) noexcept;
+
 
 //		  NORTH
 // 			^
@@ -242,5 +246,6 @@ public:
 	inline			U64& operator () (PlayerType i, PieceType j)		noexcept { return Pieces[i][j]; }
 	inline			U64& operator () (PlayerType i)						noexcept { return All[i]; }
 	Bitboard& operator = (const Bitboard& b) noexcept;
+	bool operator == (const Bitboard& b) const noexcept;
 
 };

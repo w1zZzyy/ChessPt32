@@ -1,6 +1,6 @@
 #include "Move.h"
 #include <algorithm>
-
+#include "Evaluate.h"
 
 Move::Move(int from, int to, int piece_moved)
 {
@@ -43,14 +43,14 @@ void Move::setCastle(int castle) noexcept
     pieces |= castle << 9;
 }
 
-PieceType Move::getFrom() const noexcept
+short Move::getFrom() const noexcept
 {
-    return static_cast<PieceType>(move_value & 0b000000000000111111);
+    return move_value & 0b111111;
 }
 
-PieceType Move::getTo() const noexcept
+short Move::getTo() const noexcept
 {
-    return static_cast<PieceType>((move_value & 0b000000111111000000) >> 6);
+    return (move_value & 0b111111000000) >> 6;
 }
 
 MOVE_TYPE Move::getType() const noexcept
@@ -93,7 +93,7 @@ MoveList& MoveList::operator=(MoveList&& moves) noexcept
 
 MoveList::MoveList()
 {
-    data = std::make_unique<Move[]>(218);
+    data = std::make_unique<Move[]>(MOVES_CAPACITY);
 }
 
 MoveList::MoveList(MoveList&& moves) noexcept
@@ -143,8 +143,8 @@ void MoveList::sort() noexcept
 {
     if (size <= 1)
         return;
-
-    std::sort(&data[0], &data[size - 1],
+    auto iter = data.get();
+    std::sort(iter, iter + size,
         [](const Move& m1, const Move& m2) 
         {
             MOVE_TYPE mt1 = m1.getType(), mt2 = m2.getType();

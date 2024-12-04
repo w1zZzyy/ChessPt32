@@ -7,8 +7,6 @@
 using U64 = uint64_t;
 using UL = unsigned long;
 
-constexpr int PIECE_VALUES[6] = { 200, 1, 9, 3, 3, 5 };
-
 enum MOVE_TYPE
 {
 	null = 0b0000,

@@ -28,12 +28,15 @@ public:
 
 	void join() noexcept;
 
-	std::future<FunctionType> addTask(std::function<FunctionType()>&& func); // аргументы в функцию передавай через bind
+	//std::future<FunctionType> addTask(std::function<FunctionType()>&& func); // аргументы в функцию передавай через bind
+
+	template<typename lambda>
+	std::future<FunctionType> addTask(const lambda& func);
 
 };
 
 template<typename FunctionType>
-inline ThreadPool<FunctionType>::ThreadPool() : counter(10), stop(false)
+inline ThreadPool<FunctionType>::ThreadPool() : counter(std::thread::hardware_concurrency()), stop(false)
 {
 	for (int i = 0; i < counter; i++)
 	{
@@ -76,15 +79,29 @@ inline void ThreadPool<FunctionType>::join() noexcept
 	}
 }
 
+//template<typename FunctionType>
+//inline std::future<FunctionType> ThreadPool<FunctionType>::addTask(std::function<FunctionType()>&& func)
+//{
+//	std::packaged_task<FunctionType()> task(func);
+//	auto res = task.get_future();
+//	{
+//		std::unique_lock<std::mutex> lock(mtx);
+//		tasks.push(std::move(task));
+//	}
+//	cond.notify_one();
+//	return res;
+//}
+
 template<typename FunctionType>
-inline std::future<FunctionType> ThreadPool<FunctionType>::addTask(std::function<FunctionType()>&& func)
+template<typename lambda>
+inline std::future<FunctionType> ThreadPool<FunctionType>::addTask(const lambda& func)
 {
 	std::packaged_task<FunctionType()> task(func);
 	auto res = task.get_future();
-
+	{
 		std::unique_lock<std::mutex> lock(mtx);
 		tasks.push(std::move(task));
-
+	}
 	cond.notify_one();
 	return res;
 }

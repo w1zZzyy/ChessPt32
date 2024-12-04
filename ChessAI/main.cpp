@@ -1,12 +1,12 @@
 #include "Position.h"
 #include "Engine.h"
 #include "Graphics.h"
+#include "Zobrist.h"
+
 #include <iostream>
 #include <chrono>
 
 std::mutex updateMTX;
-
-
 
 class TimeStart
 {
@@ -53,10 +53,13 @@ static void MoveMaker(Position& pos, int depth)
 std::atomic<int> CAPTURES = 0, PASSANTS = 0, PROMOTIONS = 0, CASTLES = 0, NULLS = 0;
 static void Stats(Position& position, int depth)
 {
-	TimeStart t;
-	int counter = position.CountPoses(depth);
-
-	std::cout
+	int counter;
+	{
+		TimeStart t;
+		counter = position.CountPoses(depth);
+	}
+	std::cout << counter;
+	/*std::cout
 		<< "\n::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n"
 		<< "\t\t\tSTATS\n\n"
 		<< "Positions     =     " << counter << "\n"
@@ -65,24 +68,29 @@ static void Stats(Position& position, int depth)
 		<< "Castles       =     " << CASTLES << "\n"
 		<< "Promotions    =     " << PROMOTIONS << "\n"
 		<< "Common        =     " << NULLS
-		<< "\n\n::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n";
+		<< "\n\n::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n";*/
 }
 
 
 
 static void Play(Position& position, PlayerType player)
 {
+	Engine engine(position, 8);
 	while (true)
 	{
 		if (position.getPlayer() == player)
 		{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
 			std::lock_guard<std::mutex> m(updateMTX);
 
-			Engine::Search(position);
+			{
+				TimeStart t;
+				engine.Search();
+			}
+
 			if (position.getPlayer() == player)
 				break;
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
 }
 
@@ -90,6 +98,7 @@ static void Play(Position& position, PlayerType player)
 
 int main()
 {
+	ZOBRIST::init();
 	PRE_CALC_ATTACKS::init();
 
 	Position board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq");

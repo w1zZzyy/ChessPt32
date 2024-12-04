@@ -1,39 +1,49 @@
 #pragma once
-#include "BitWork.h"
-#include <unordered_map>
 
-enum class CUT_FLAG
+#include "BitWork.h"
+#include "Zobrist.h"
+
+#include <optional>
+#include <shared_mutex>
+
+enum EntryType
 {
 	EXACT,
-	ALPHA,
-	BETA
+	LOWER_BOUND, // alpha_cut 
+	UPPER_BOUND // beta_cut
 };
 
-struct Position
+struct Entry
 {
-	float eval;
+	Zobrist key;
 	int depth;
-	CUT_FLAG flag;
+	float eval;
+	EntryType type;
+
+	inline explicit Entry() : depth(0), eval(0), type(EXACT) {}
+	inline explicit Entry(const Zobrist& k, int d, float e, EntryType t) :
+		key(k),
+		depth(d),
+		eval(e),
+		type(t)
+	{}
 };
 
-struct Hash
-{
-	size_t operator() (const U64& pos) const noexcept
-	{
-		return (pos * 239017l) % (1ULL << 32);
-	}
-};
-
-class Transposition
+class TransPositionTable
 {
 private:
 
-	inline static std::unordered_map<U64, Position, Hash> data;
+	size_t TABLESIZE;
+	Entry* table;
+	std::shared_mutex* _mtx_;
 
 public:
 
-	static void Setup() noexcept;
-	static const Position* find(U64 hash) noexcept;
-	static void store(U64 key, Position&& p) noexcept;
+	TransPositionTable();
+
+	void store(const Zobrist& key, Entry&& entry) noexcept;
+	std::optional<Entry> find(const Zobrist& key) const noexcept;
+
+	~TransPositionTable();
 
 };

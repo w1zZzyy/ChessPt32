@@ -4,13 +4,14 @@
 #include "Move.h"
 #include "Threats.h"
 #include "PreCalculated.h"
+#include "Zobrist.h"
+
 #include <string>
 #include <mutex>
 #include <memory>
 
 
-extern std::atomic<int> CAPTURES, PASSANTS, PROMOTIONS, CASTLES, NULLS;
-
+//extern std::atomic<int> CAPTURES, PASSANTS, PROMOTIONS, CASTLES, NULLS;
 
 class Position
 {
@@ -18,8 +19,9 @@ private:
 
 	Bitboard pieces;
 	PlayerType player;
-	short castles = 0b0000;
-	short en_passant = 64;
+	short castles;
+	short en_passant;
+	Zobrist zobrist;
 
 	mutable Threats threats; // шахи, атаки вражеских фигур, связки
 
@@ -51,21 +53,20 @@ private:
 
 public:
 
-	Position() = default;
 	Position(const Position& pos);
 	Position(const std::string& FEN);
 	Position& operator = (const Position& pos) noexcept;
 
 	MoveList GenerateMoves() const noexcept;
-	Position& make_move(const Move&) noexcept;
-
+	Position& make_move(const Move& move) noexcept;
 
 	int CountPoses(int depth) const noexcept;
 
 	inline PlayerType getPlayer() const noexcept { return player; }
-	inline U64 getOppAttacks() const noexcept { return threats.opp_attacks; }
 	inline U64 getPiece(PlayerType playerT, PieceType pieceT) const noexcept { return pieces(playerT, pieceT); }
 	inline U64 getBoard(PlayerType playerT) const noexcept { return pieces(playerT); }
+	inline bool checkmate() const noexcept { return (threats.opp_attacks & pieces(player, KING)) != 0; }
+	inline const Zobrist& getKey() const noexcept { return zobrist; }
 
 	char getPieceFEN(UL index) const noexcept;
 	void print() const noexcept;
@@ -201,6 +202,9 @@ inline void Position::GeneratePawnMoves(U64 pawns, MoveList* Moves) const noexce
 	move_gen(captureL & pieces(player2) & sqrs_to_deffend, move_back_cl, MOVE_TYPE::CAPTURE);
 	move_gen(captureR & pieces(player2) & sqrs_to_deffend, move_back_cr, MOVE_TYPE::CAPTURE);
 
+	if (en_passant == -1)
+		return;
+
 	U64 pass = 1ULL << en_passant;
 	if (captureL & pass)
 		passant_gen(en_passant, en_passant + move_back_cl, en_passant + move_back_f1);
@@ -216,7 +220,7 @@ inline U64 Position::PinnedPawnsMoves(U64 pawns, MoveList* Moves) const noexcept
 	if (pinned == 0 || threats.checks_counter != 0)
 		return pinned;
 
-	U64 passant						=				 1ULL << en_passant;
+	U64 passant						=				 (en_passant != -1) ? 1ULL << en_passant : 0;
 	PlayerType player2				=				 static_cast<PlayerType>(player ^ 1);
 	U64 free						=				 ~pieces(BOTH);
 	constexpr U64 last_rank			=				 (playerT == WHITE) ? Edges::Rank8 : Edges::Rank1;
@@ -347,10 +351,7 @@ inline bool Position::Castle() const noexcept
 
 
 
-
-
-
-static int CountPoses1(int depth, const Position& position) noexcept
+static int CountPoses1(int depth, Position& position) noexcept
 {
 	if (depth == 0)
 		return 1;
@@ -362,7 +363,7 @@ static int CountPoses1(int depth, const Position& position) noexcept
 	{
 		Position temp(position);
 		counter += CountPoses1(depth - 1, temp.make_move(Moves[i]));
-
 	}
+
 	return counter;
 }
