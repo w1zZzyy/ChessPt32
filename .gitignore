@@ -65,3 +65,24 @@ ChessAI/*.dll
 !ChessAI/*.cpp
 !ChessAI/*.h
 !ChessAI/PiecesImgs/*.png
+
+# Игнорировать отладочные и релизные файлы
+ChessAI/x64/Debug/
+ChessAI/x64/Release/
+
+# Игнорировать пользовательские настройки
+*.vcxproj.user
+*.suo
+*.VC.db
+
+# Игнорировать временные файлы и системные файлы IDE
+.vscode/
+.idea/
+
+# Исключить временные файлы и лог-файлы
+*.tmp
+*.log
+*.bak
+*.swp
+
+
